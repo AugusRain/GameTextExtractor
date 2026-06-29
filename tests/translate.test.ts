@@ -56,10 +56,17 @@ describe('translation helpers', () => {
     expect(buildTranslatedFileName('batch-001.json')).toBe('batch-001.zh.json');
   });
 
-  it('includes the no-person-name-translation constraint in the prompt', () => {
-    const messages = buildTranslationMessages([makeItem('000001', 'Alice starts the game')]);
+  it('includes fluent Chinese and no-person-name-translation constraints in the prompt', () => {
+    const messages = buildTranslationMessages([makeItem('000001', 'Alice starts the game')], 'english_to_chinese');
+    expect(messages[0].content).toContain('流畅');
+    expect(messages[0].content).toContain('简体中文');
     expect(messages[0].content).toContain('人名');
     expect(messages[0].content).toContain('不翻译');
+  });
+
+  it('switches prompt wording for Japanese to Chinese mode', () => {
+    const messages = buildTranslationMessages([makeItem('000001', 'ゲーム開始')], 'japanese_to_chinese');
+    expect(messages[1].content).toContain('"sourceLanguage": "日文"');
   });
 
   it('parses valid model JSON output', () => {
@@ -139,5 +146,22 @@ describe('translateFolder', () => {
 
     expect(result.failedCount).toBe(1);
     expect(result.successCount).toBe(1);
+  });
+
+  it('rejects model output that is not Chinese enough', async () => {
+    const inputDir = await makeTempDir();
+    const outputDir = await makeTempDir();
+    await writeFile(path.join(inputDir, 'batch-001.json'), JSON.stringify([makeItem('000001', 'Start Game')]));
+
+    const result = await translateFolder({
+      inputDir,
+      outputDir,
+      apiKey: 'sk-test',
+      overwrite: true,
+      fetchImpl: fakeFetchWithTranslations('Start Game')
+    });
+
+    expect(result.failedCount).toBe(1);
+    expect(result.files[0].error).toContain('不像流畅中文');
   });
 });

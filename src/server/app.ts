@@ -87,6 +87,7 @@ export function createApp(options: CreateAppOptions = {}) {
     const inputDir = request.body?.inputDir;
     const outputDir = request.body?.outputDir;
     const overwrite = Boolean(request.body?.overwrite);
+    const translationMode = request.body?.translationMode === 'japanese_to_chinese' ? 'japanese_to_chinese' : 'english_to_chinese';
 
     if (typeof inputDir !== 'string' || inputDir.trim().length === 0) {
       response.status(400).json({ error: '请先选择待翻译 JSON 文件夹' });
@@ -99,7 +100,8 @@ export function createApp(options: CreateAppOptions = {}) {
         inputDir: inputDir.trim(),
         outputDir: typeof outputDir === 'string' && outputDir.trim() ? outputDir.trim() : undefined,
         apiKey,
-        overwrite
+        overwrite,
+        translationMode
       });
       response.json(result);
     } catch (error) {

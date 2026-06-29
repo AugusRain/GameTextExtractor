@@ -179,6 +179,25 @@ button:disabled {
   height: 18px;
 }
 
+.mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mode-button {
+  background: #e7eef1;
+  color: #2d4350;
+  border: 1px solid #c8d6dc;
+}
+
+.mode-button.active {
+  background: #18706f;
+  color: #ffffff;
+  border-color: #18706f;
+}
+
 .message {
   margin: 18px 0 0;
   padding: 12px 14px;

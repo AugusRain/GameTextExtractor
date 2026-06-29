@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+type TranslationMode = 'english_to_chinese' | 'japanese_to_chinese';
+
 type ScanResponse = {
   totalItems: number;
   outputDir: string;
@@ -28,7 +30,8 @@ export function App() {
   const [translateOutputDir, setTranslateOutputDir] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [hasApiKey, setHasApiKey] = useState(false);
-  const [overwrite, setOverwrite] = useState(false);
+  const [overwrite, setOverwrite] = useState(true);
+  const [translationMode, setTranslationMode] = useState<TranslationMode>('english_to_chinese');
   const [translateResult, setTranslateResult] = useState<TranslateResponse | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -182,7 +185,8 @@ export function App() {
         body: JSON.stringify({
           inputDir: translateInputDir,
           outputDir: translateOutputDir,
-          overwrite
+          overwrite,
+          translationMode
         })
       });
       const data = await response.json();
@@ -206,7 +210,7 @@ export function App() {
         <div className="header">
           <p className="eyebrow">TranslateProject002</p>
           <h1>游戏文本提取与翻译器</h1>
-          <p className="intro">先从游戏文件夹提取文本，再把生成的 JSON 批量翻译成中文。工具不会修改你的原游戏文件。</p>
+          <p className="intro">先从游戏文件夹提取文本，再把生成的 JSON 批量翻译成流畅简体中文。工具不会修改你的原游戏文件。</p>
         </div>
 
         <form className="section-card" onSubmit={handleScan}>
@@ -260,7 +264,7 @@ export function App() {
             <span className="step-badge">2</span>
             <div>
               <h2>翻译 JSON 文件</h2>
-              <p>按文件顺序调用 DeepSeek 翻译，输出一一对应的中文 JSON。</p>
+              <p>选择英译中或日译中，按文件顺序调用 DeepSeek 输出一一对应的中文 JSON。</p>
             </div>
           </div>
 
@@ -278,6 +282,26 @@ export function App() {
             <button type="button" className="secondary-button" onClick={handleSaveApiKey} disabled={isSavingKey || !apiKey.trim()}>
               {isSavingKey ? '保存中' : '保存 Key'}
             </button>
+          </div>
+
+          <div>
+            <span className="label">翻译方向</span>
+            <div className="mode-buttons" role="group" aria-label="翻译方向">
+              <button
+                type="button"
+                className={translationMode === 'english_to_chinese' ? 'mode-button active' : 'mode-button'}
+                onClick={() => setTranslationMode('english_to_chinese')}
+              >
+                英译中
+              </button>
+              <button
+                type="button"
+                className={translationMode === 'japanese_to_chinese' ? 'mode-button active' : 'mode-button'}
+                onClick={() => setTranslationMode('japanese_to_chinese')}
+              >
+                日译中
+              </button>
+            </div>
           </div>
 
           <label htmlFor="translateInputDir">待翻译 JSON 文件夹</label>
@@ -313,7 +337,7 @@ export function App() {
           </label>
 
           <div className="start-row">
-            <span>人名和专有名词将保持原文</span>
+            <span>译文将尽量改写成自然流畅中文，人名和专有名词保持原文</span>
             <button type="submit" disabled={isTranslating || !hasApiKey}>
               {isTranslating ? '正在翻译' : '开始翻译'}
             </button>

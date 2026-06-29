@@ -2,6 +2,8 @@ import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExtractedText } from './scan';
 
+export type TranslationMode = 'english_to_chinese' | 'japanese_to_chinese';
+
 export type TranslatedText = {
   id: string;
   translatedText: string;
@@ -29,6 +31,7 @@ export type TranslateFolderOptions = {
   outputDir?: string;
   apiKey: string;
   overwrite?: boolean;
+  translationMode?: TranslationMode;
   model?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
@@ -37,26 +40,49 @@ export type TranslateFolderOptions = {
 const DEFAULT_MODEL = 'deepseek-v4-flash';
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 
+const MODE_COPY: Record<TranslationMode, { source: string; instruction: string }> = {
+  english_to_chinese: {
+    source: '英文',
+    instruction: '把英文游戏文本翻译成自然、流畅、符合中文玩家阅读习惯的简体中文。'
+  },
+  japanese_to_chinese: {
+    source: '日文',
+    instruction: '把日文游戏文本翻译成自然、流畅、符合中文玩家阅读习惯的简体中文。'
+  }
+};
+
 export function buildTranslatedFileName(fileName: string) {
   return fileName.replace(/\.json$/i, '.zh.json');
 }
 
-export function buildTranslationMessages(items: ExtractedText[]) {
+export function buildTranslationMessages(items: ExtractedText[], translationMode: TranslationMode = 'english_to_chinese') {
+  const modeCopy = MODE_COPY[translationMode];
+
   return [
     {
       role: 'system',
-      content:
-        '你是专业游戏本地化译者。请把文本翻译为简体中文。人名、角色名、地名、专有名词、品牌名、代码字段、变量名和 id 不翻译。保持每个 id 一一对应，只返回合法 JSON。'
+      content: [
+        '你是专业游戏本地化译者。',
+        modeCopy.instruction,
+        '译文必须是简体中文，不要输出英文直译、日文原文、拼音或乱码。',
+        '不要机械逐词翻译，要改写成中文玩家看得懂、读起来顺的表达。',
+        '人名、角色名、地名、专有名词、品牌名、代码字段、变量名和 id 不翻译。',
+        '保留游戏术语的语气和上下文，例如按钮、菜单、提示、对白要像正式中文游戏文案。',
+        '保持每个 id 一一对应，只返回合法 JSON。'
+      ].join('\n')
     },
     {
       role: 'user',
       content: JSON.stringify(
         {
+          sourceLanguage: modeCopy.source,
+          targetLanguage: '简体中文',
           requirements: [
-            '只返回 JSON 对象，格式为 {"translations":[{"id":"000001","translatedText":"中文"}]}',
+            '只返回 JSON 对象，格式为 {"translations":[{"id":"000001","translatedText":"中文译文"}]}',
             'translations 数量必须和输入数量完全一致',
             '不要添加解释、Markdown 或额外字段',
-            '如果文本中包含人名，请保留原文人名'
+            '如果文本中包含人名，请保留原文人名',
+            '除人名和专有名词外，translatedText 必须是流畅简体中文'
           ],
           items: items.map((item) => ({ id: item.id, text: item.text }))
         },
@@ -107,7 +133,8 @@ export async function translateFolder(options: TranslateFolderOptions): Promise<
         apiKey,
         model: options.model || DEFAULT_MODEL,
         baseUrl: options.baseUrl || DEFAULT_BASE_URL,
-        fetchImpl: options.fetchImpl || fetch
+        fetchImpl: options.fetchImpl || fetch,
+        translationMode: options.translationMode || 'english_to_chinese'
       });
       await writeFile(outputFile, `${JSON.stringify(translated, null, 2)}\n`, 'utf8');
       files.push({ inputFile, outputFile, itemCount: translated.length, status: 'success' });
@@ -150,7 +177,13 @@ async function readExtractedTextFile(filePath: string) {
 
 async function translateWithRetry(
   items: ExtractedText[],
-  options: { apiKey: string; model: string; baseUrl: string; fetchImpl: typeof fetch }
+  options: {
+    apiKey: string;
+    model: string;
+    baseUrl: string;
+    fetchImpl: typeof fetch;
+    translationMode: TranslationMode;
+  }
 ) {
   let lastError: unknown;
 
@@ -158,6 +191,7 @@ async function translateWithRetry(
     try {
       const translated = await translateBatch(items, options);
       validateTranslations(items, translated);
+      validateChineseQuality(items, translated, options.translationMode);
       return translated;
     } catch (error) {
       lastError = error;
@@ -169,7 +203,13 @@ async function translateWithRetry(
 
 async function translateBatch(
   items: ExtractedText[],
-  options: { apiKey: string; model: string; baseUrl: string; fetchImpl: typeof fetch }
+  options: {
+    apiKey: string;
+    model: string;
+    baseUrl: string;
+    fetchImpl: typeof fetch;
+    translationMode: TranslationMode;
+  }
 ) {
   const response = await options.fetchImpl(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -179,9 +219,9 @@ async function translateBatch(
     },
     body: JSON.stringify({
       model: options.model,
-      messages: buildTranslationMessages(items),
+      messages: buildTranslationMessages(items, options.translationMode),
       response_format: { type: 'json_object' },
-      temperature: 0.2
+      temperature: 0.1
     })
   });
 
@@ -241,6 +281,43 @@ function validateTranslations(source: ExtractedText[], translated: TranslatedTex
       throw new Error(`翻译结果包含未知 id: ${item.id}`);
     }
   }
+}
+
+function validateChineseQuality(source: ExtractedText[], translated: TranslatedText[], translationMode: TranslationMode) {
+  const translatedById = new Map(translated.map((item) => [item.id, item.translatedText]));
+  const sourceItemsNeedingChinese = source.filter((item) => shouldExpectChinese(item.text, translationMode));
+
+  if (sourceItemsNeedingChinese.length === 0) {
+    return;
+  }
+
+  const chineseCount = sourceItemsNeedingChinese.filter((item) => hasChinese(translatedById.get(item.id) || '')).length;
+  const ratio = chineseCount / sourceItemsNeedingChinese.length;
+
+  if (ratio < 0.65) {
+    throw new Error('翻译结果不像流畅中文，请检查模型返回内容或选择正确的英译中/日译中模式');
+  }
+}
+
+function shouldExpectChinese(text: string, translationMode: TranslationMode) {
+  const trimmed = text.trim();
+  if (trimmed.length < 2) {
+    return false;
+  }
+
+  if (/^[A-Z][a-z]+$/.test(trimmed)) {
+    return false;
+  }
+
+  if (translationMode === 'japanese_to_chinese') {
+    return /[\u3040-\u30ff]/.test(trimmed);
+  }
+
+  return /[A-Za-z]/.test(trimmed);
+}
+
+function hasChinese(text: string) {
+  return /[\u4e00-\u9fff]/.test(text);
 }
 
 async function fileExists(filePath: string) {
