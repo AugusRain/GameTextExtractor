@@ -1,0 +1,30 @@
+{
+  "name": "translate-project-002",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Extract front-end game text into AI translation JSON batches.",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1 --port 5173\" \"tsx watch src/server/index.ts\"",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "notify": "tsx scripts/notify.ts"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}
