@@ -7,12 +7,14 @@ let mainWindow: BrowserWindow | null = null;
 async function createWindow() {
   const staticDir = path.resolve(__dirname, '../dist');
   const outputRoot = path.join(app.getPath('documents'), 'GameTextExtractor');
+  const configRoot = app.getPath('userData');
   const expressApp = createApp({
+    configRoot,
     outputRoot,
     staticDir,
-    selectFolder: async () => {
+    selectFolder: async (title) => {
       const options: OpenDialogOptions = {
-        title: '选择完整游戏文件夹',
+        title: title || '选择文件夹',
         properties: ['openDirectory']
       };
       const result = mainWindow
@@ -33,11 +35,11 @@ async function createWindow() {
   const port = typeof address === 'object' && address ? address.port : 0;
 
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 720,
-    minWidth: 760,
-    minHeight: 560,
-    title: '游戏文本提取器',
+    width: 1040,
+    height: 780,
+    minWidth: 820,
+    minHeight: 620,
+    title: '游戏文本提取与翻译器',
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,

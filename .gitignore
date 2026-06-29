@@ -5,3 +5,4 @@ release/
 outputs/
 *.log
 .env
+.local/

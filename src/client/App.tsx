@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 type ScanResponse = {
   totalItems: number;
@@ -6,29 +6,75 @@ type ScanResponse = {
   files: Array<{ fileName: string; itemCount: number; fullPath: string }>;
 };
 
+type TranslateResponse = {
+  totalFiles: number;
+  successCount: number;
+  failedCount: number;
+  skippedCount: number;
+  outputDir: string;
+  files: Array<{
+    inputFile: string;
+    outputFile: string;
+    itemCount: number;
+    status: 'success' | 'failed' | 'skipped';
+    error?: string;
+  }>;
+};
+
 export function App() {
   const [folderPath, setFolderPath] = useState('');
   const [result, setResult] = useState<ScanResponse | null>(null);
+  const [translateInputDir, setTranslateInputDir] = useState('');
+  const [translateOutputDir, setTranslateOutputDir] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
+  const [translateResult, setTranslateResult] = useState<TranslateResponse | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [isChoosingFolder, setIsChoosingFolder] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
-  async function handleChooseFolder() {
+  useEffect(() => {
+    void refreshApiKeyStatus();
+  }, []);
+
+  async function refreshApiKeyStatus() {
+    try {
+      const response = await fetch('/api/api-key-status');
+      const data = await response.json();
+      setHasApiKey(Boolean(data.hasApiKey));
+    } catch {
+      setHasApiKey(false);
+    }
+  }
+
+  async function chooseFolder(title: string) {
+    const response = await fetch('/api/select-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || '选择文件夹失败');
+    }
+
+    return typeof data.folderPath === 'string' ? data.folderPath : '';
+  }
+
+  async function handleChooseGameFolder() {
     setError('');
     setNotice('');
     setIsChoosingFolder(true);
 
     try {
-      const response = await fetch('/api/select-folder', { method: 'POST' });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '选择文件夹失败');
-      }
-
-      if (data.folderPath) {
-        setFolderPath(data.folderPath);
+      const selected = await chooseFolder('选择完整游戏文件夹');
+      if (selected) {
+        setFolderPath(selected);
         setNotice('已选择游戏文件夹，可以开始提取。');
       }
     } catch (caught) {
@@ -38,7 +84,62 @@ export function App() {
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleChooseTranslateInput() {
+    setError('');
+    setNotice('');
+
+    try {
+      const selected = await chooseFolder('选择待翻译 JSON 文件夹');
+      if (selected) {
+        setTranslateInputDir(selected);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '选择文件夹失败');
+    }
+  }
+
+  async function handleChooseTranslateOutput() {
+    setError('');
+    setNotice('');
+
+    try {
+      const selected = await chooseFolder('选择中文结果保存文件夹');
+      if (selected) {
+        setTranslateOutputDir(selected);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '选择文件夹失败');
+    }
+  }
+
+  async function handleSaveApiKey() {
+    setError('');
+    setNotice('');
+    setIsSavingKey(true);
+
+    try {
+      const response = await fetch('/api/save-api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '保存 API Key 失败');
+      }
+
+      setApiKey('');
+      setHasApiKey(true);
+      setNotice('API Key 已保存到本机配置。');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '保存 API Key 失败');
+    } finally {
+      setIsSavingKey(false);
+    }
+  }
+
+  async function handleScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setNotice('');
@@ -58,10 +159,44 @@ export function App() {
       }
 
       setResult(data);
+      setTranslateInputDir(data.outputDir);
+      setNotice('文本提取完成，已自动填入待翻译 JSON 文件夹。');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '扫描失败');
     } finally {
       setIsScanning(false);
+    }
+  }
+
+  async function handleTranslate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    setTranslateResult(null);
+    setIsTranslating(true);
+
+    try {
+      const response = await fetch('/api/translate-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inputDir: translateInputDir,
+          outputDir: translateOutputDir,
+          overwrite
+        })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '翻译失败');
+      }
+
+      setTranslateResult(data);
+      setNotice('JSON 翻译任务已完成。');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '翻译失败');
+    } finally {
+      setIsTranslating(false);
     }
   }
 
@@ -70,14 +205,22 @@ export function App() {
       <section className="panel">
         <div className="header">
           <p className="eyebrow">TranslateProject002</p>
-          <h1>游戏文本提取器</h1>
-          <p className="intro">选择完整游戏文件夹，自动找出需要翻译成中文的前端文本，并拆成适合喂给 AI 的 JSON 文件。</p>
+          <h1>游戏文本提取与翻译器</h1>
+          <p className="intro">先从游戏文件夹提取文本，再把生成的 JSON 批量翻译成中文。工具不会修改你的原游戏文件。</p>
         </div>
 
-        <form className="scan-form" onSubmit={handleSubmit}>
-          <label htmlFor="folderPath">第一步：选择游戏文件夹</label>
+        <form className="section-card" onSubmit={handleScan}>
+          <div className="section-heading">
+            <span className="step-badge">1</span>
+            <div>
+              <h2>提取游戏文本</h2>
+              <p>选择完整游戏文件夹，生成每批最多 300 条的 JSON。</p>
+            </div>
+          </div>
+
+          <label htmlFor="folderPath">游戏文件夹</label>
           <div className="folder-actions">
-            <button type="button" className="secondary-button" onClick={handleChooseFolder} disabled={isChoosingFolder}>
+            <button type="button" className="secondary-button" onClick={handleChooseGameFolder} disabled={isChoosingFolder}>
               {isChoosingFolder ? '正在打开' : '选择文件夹'}
             </button>
             <input
@@ -90,15 +233,12 @@ export function App() {
           </div>
 
           <div className="start-row">
-            <span>第二步：开始提取文本</span>
+            <span>开始扫描并生成 JSON</span>
             <button type="submit" disabled={isScanning}>
               {isScanning ? '正在提取' : '开始提取'}
             </button>
           </div>
         </form>
-
-        {notice ? <p className="message success">{notice}</p> : null}
-        {error ? <p className="message error">{error}</p> : null}
 
         {result ? (
           <section className="result">
@@ -111,26 +251,111 @@ export function App() {
               <span className="label">生成位置</span>
               <code>{result.outputDir}</code>
             </div>
-            <div>
-              <span className="label">可交给 AI 翻译的文件</span>
-              <ul className="file-list">
-                {result.files.map((file) => (
-                  <li key={file.fullPath}>
-                    <code>{file.fileName}</code>
-                    <span>{file.itemCount} 条</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <FileList files={result.files.map((file) => ({ name: file.fileName, detail: `${file.itemCount} 条` }))} />
           </section>
         ) : null}
 
-        <ol className="tips">
-          <li>把生成的 JSON 文件逐个发给 AI 翻译。</li>
-          <li>每个文件最多 300 条，适合分批处理。</li>
-          <li>本版本只提取文本，不会修改你的游戏文件。</li>
-        </ol>
+        <form className="section-card" onSubmit={handleTranslate}>
+          <div className="section-heading">
+            <span className="step-badge">2</span>
+            <div>
+              <h2>翻译 JSON 文件</h2>
+              <p>按文件顺序调用 DeepSeek 翻译，输出一一对应的中文 JSON。</p>
+            </div>
+          </div>
+
+          <div className="api-row">
+            <div>
+              <label htmlFor="apiKey">DeepSeek API Key</label>
+              <input
+                id="apiKey"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder={hasApiKey ? '已保存，可留空' : '请输入 sk- 开头的 API Key'}
+                type="password"
+              />
+            </div>
+            <button type="button" className="secondary-button" onClick={handleSaveApiKey} disabled={isSavingKey || !apiKey.trim()}>
+              {isSavingKey ? '保存中' : '保存 Key'}
+            </button>
+          </div>
+
+          <label htmlFor="translateInputDir">待翻译 JSON 文件夹</label>
+          <div className="folder-actions">
+            <button type="button" className="secondary-button" onClick={handleChooseTranslateInput}>
+              选择文件夹
+            </button>
+            <input
+              id="translateInputDir"
+              value={translateInputDir}
+              onChange={(event) => setTranslateInputDir(event.target.value)}
+              placeholder="选择上一步生成的 outputs 文件夹"
+              required
+            />
+          </div>
+
+          <label htmlFor="translateOutputDir">中文结果保存文件夹</label>
+          <div className="folder-actions">
+            <button type="button" className="secondary-button" onClick={handleChooseTranslateOutput}>
+              选择文件夹
+            </button>
+            <input
+              id="translateOutputDir"
+              value={translateOutputDir}
+              onChange={(event) => setTranslateOutputDir(event.target.value)}
+              placeholder="可留空，默认生成 translated-时间戳 文件夹"
+            />
+          </div>
+
+          <label className="check-row">
+            <input type="checkbox" checked={overwrite} onChange={(event) => setOverwrite(event.target.checked)} />
+            <span>重新翻译已存在的结果文件</span>
+          </label>
+
+          <div className="start-row">
+            <span>人名和专有名词将保持原文</span>
+            <button type="submit" disabled={isTranslating || !hasApiKey}>
+              {isTranslating ? '正在翻译' : '开始翻译'}
+            </button>
+          </div>
+        </form>
+
+        {translateResult ? (
+          <section className="result">
+            <div className="summary">
+              <span>文件</span>
+              <strong>{translateResult.totalFiles}</strong>
+              <span>个，成功 {translateResult.successCount}，跳过 {translateResult.skippedCount}，失败 {translateResult.failedCount}</span>
+            </div>
+            <div>
+              <span className="label">中文结果位置</span>
+              <code>{translateResult.outputDir}</code>
+            </div>
+            <FileList
+              files={translateResult.files.map((file) => ({
+                name: file.outputFile,
+                detail: file.status === 'success' ? `${file.itemCount} 条` : file.status === 'skipped' ? '已跳过' : file.error || '失败'
+              }))}
+            />
+          </section>
+        ) : null}
+
+        {notice ? <p className="message success">{notice}</p> : null}
+        {error ? <p className="message error">{error}</p> : null}
       </section>
     </main>
+  );
+}
+
+function FileList(props: { files: Array<{ name: string; detail: string }> }) {
+  return (
+    <ul className="file-list">
+      {props.files.map((file) => (
+        <li key={file.name}>
+          <code>{file.name}</code>
+          <span>{file.detail}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

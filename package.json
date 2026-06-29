@@ -17,7 +17,7 @@
   },
   "build": {
     "appId": "local.translate.project002",
-    "productName": "游戏文本提取器",
+    "productName": "游戏文本提取与翻译器",
     "directories": {
       "output": "release"
     },

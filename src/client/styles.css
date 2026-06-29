@@ -21,13 +21,12 @@ input {
 
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   padding: 32px;
 }
 
 .panel {
-  width: min(920px, 100%);
+  width: min(1040px, 100%);
+  margin: 0 auto;
   background: #ffffff;
   border: 1px solid #d7e1e5;
   border-radius: 8px;
@@ -38,32 +37,64 @@ input {
 .header {
   display: grid;
   gap: 8px;
+  margin-bottom: 22px;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0;
   color: #35605a;
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-h1 {
+h1,
+h2,
+p {
   margin: 0;
+}
+
+h1 {
   font-size: 32px;
   line-height: 1.2;
 }
 
-.intro {
-  max-width: 690px;
-  margin: 0 0 22px;
+h2 {
+  font-size: 20px;
+}
+
+.intro,
+.section-heading p {
   color: #52616b;
   line-height: 1.7;
 }
 
-.scan-form {
+.section-card {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid #dfe8eb;
+  border-radius: 8px;
+  background: #fbfdfd;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.step-badge {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #18706f;
+  color: #ffffff;
+  font-weight: 800;
 }
 
 label,
@@ -73,14 +104,26 @@ label,
   font-weight: 700;
 }
 
-.folder-actions {
+.folder-actions,
+.api-row {
   display: grid;
   grid-template-columns: 150px 1fr;
   gap: 12px;
 }
 
+.api-row {
+  grid-template-columns: 1fr 150px;
+  align-items: end;
+}
+
+.api-row > div {
+  display: grid;
+  gap: 8px;
+}
+
 input {
   min-width: 0;
+  width: 100%;
   height: 44px;
   border: 1px solid #bfccd2;
   border-radius: 6px;
@@ -88,7 +131,7 @@ input {
 }
 
 button {
-  height: 44px;
+  min-height: 44px;
   border: 0;
   border-radius: 6px;
   background: #18706f;
@@ -102,8 +145,8 @@ button {
 }
 
 button:disabled {
-  cursor: wait;
-  opacity: 0.7;
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .start-row {
@@ -124,6 +167,18 @@ button:disabled {
   width: 150px;
 }
 
+.check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+}
+
 .message {
   margin: 18px 0 0;
   padding: 12px 14px;
@@ -141,19 +196,23 @@ button:disabled {
 }
 
 .result {
-  margin-top: 26px;
+  margin-top: 18px;
+  padding: 18px;
   display: grid;
-  gap: 18px;
+  gap: 14px;
+  border: 1px solid #e2eaed;
+  border-radius: 8px;
 }
 
 .summary {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .summary strong {
-  font-size: 34px;
+  font-size: 30px;
 }
 
 code {
@@ -166,7 +225,7 @@ code {
 .file-list {
   display: grid;
   gap: 8px;
-  margin: 10px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -181,16 +240,11 @@ code {
   padding: 10px 12px;
 }
 
-.tips {
-  margin: 26px 0 0;
-  padding: 18px 18px 18px 38px;
-  border-radius: 8px;
-  background: #f5f8fa;
-  color: #4e5d66;
-  line-height: 1.7;
+.file-list span {
+  flex: 0 0 auto;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .app-shell {
     padding: 18px;
   }
@@ -199,7 +253,8 @@ code {
     padding: 22px;
   }
 
-  .folder-actions {
+  .folder-actions,
+  .api-row {
     grid-template-columns: 1fr;
   }
 
