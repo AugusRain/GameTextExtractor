@@ -7,6 +7,7 @@ import {
   scanGameFolder,
   shouldIncludeText,
   shouldSkipDirectory,
+  shouldScanFile,
   writeBatches,
   type ExtractedText
 } from '../src/server/scan';
@@ -62,6 +63,12 @@ describe('directory scanning', () => {
   it('skips ignored folders', () => {
     expect(shouldSkipDirectory('node_modules')).toBe(true);
     expect(shouldSkipDirectory('dist')).toBe(true);
+  });
+
+  it('skips common binary file extensions', () => {
+    expect(shouldScanFile('assets/logo.png')).toBe(false);
+    expect(shouldScanFile('audio/theme.mp3')).toBe(false);
+    expect(shouldScanFile('scripts/main.js')).toBe(true);
   });
 
   it('extracts HTML text, attributes, JSON strings, and JS strings', async () => {

@@ -35,6 +35,11 @@ input {
   box-shadow: 0 16px 50px rgba(24, 32, 42, 0.08);
 }
 
+.header {
+  display: grid;
+  gap: 8px;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: #35605a;
@@ -44,9 +49,16 @@ input {
 }
 
 h1 {
-  margin: 0 0 28px;
+  margin: 0;
   font-size: 32px;
   line-height: 1.2;
+}
+
+.intro {
+  max-width: 690px;
+  margin: 0 0 22px;
+  color: #52616b;
+  line-height: 1.7;
 }
 
 .scan-form {
@@ -61,9 +73,9 @@ label,
   font-weight: 700;
 }
 
-.input-row {
+.folder-actions {
   display: grid;
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: 150px 1fr;
   gap: 12px;
 }
 
@@ -85,9 +97,31 @@ button {
   cursor: pointer;
 }
 
+.secondary-button {
+  background: #315f72;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.start-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #dfe8eb;
+  border-radius: 8px;
+  background: #f8fbfb;
+  color: #40515b;
+  font-weight: 700;
+}
+
+.start-row button {
+  width: 150px;
 }
 
 .message {
@@ -99,6 +133,11 @@ button:disabled {
 .error {
   background: #fff1f0;
   color: #9f1d18;
+}
+
+.success {
+  background: #eff9f5;
+  color: #1f6951;
 }
 
 .result {
@@ -142,6 +181,15 @@ code {
   padding: 10px 12px;
 }
 
+.tips {
+  margin: 26px 0 0;
+  padding: 18px 18px 18px 38px;
+  border-radius: 8px;
+  background: #f5f8fa;
+  color: #4e5d66;
+  line-height: 1.7;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     padding: 18px;
@@ -151,7 +199,16 @@ code {
     padding: 22px;
   }
 
-  .input-row {
+  .folder-actions {
     grid-template-columns: 1fr;
+  }
+
+  .start-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .start-row button {
+    width: 100%;
   }
 }

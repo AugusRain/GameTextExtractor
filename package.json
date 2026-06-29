@@ -4,11 +4,33 @@
   "private": true,
   "type": "module",
   "description": "Extract front-end game text into AI translation JSON batches.",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1 --port 5173\" \"tsx watch src/server/index.ts\"",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && npm run build:electron",
+    "build:electron": "esbuild src/electron/main.ts --bundle --platform=node --format=cjs --outfile=dist-electron/main.cjs --external:electron",
+    "package:win": "npm run build && electron-builder --win dir",
+    "package:portable": "npm run build && electron-builder --win portable",
+    "start": "electron .",
     "test": "vitest run",
     "notify": "tsx scripts/notify.ts"
+  },
+  "build": {
+    "appId": "local.translate.project002",
+    "productName": "游戏文本提取器",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": "portable",
+      "artifactName": "GameTextExtractor-${version}.${ext}"
+    }
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -22,6 +44,9 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "concurrently": "^9.1.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
